@@ -2,15 +2,18 @@ let chart;
 let selectedAxis = "dy";
 let refreshTimer = null;
 let currentSelected = null;
+let currentProject = null; // active project name
 
 // ---- Load & Redraw Chart ----
-function loadData() {
-  fetch("/get_data")
+function loadDataForProject(project) {
+  fetch(`/get_data?project=${project}`)
     .then(r => r.json())
     .then(data => {
       drawChart(data);
       updateIDList(data.ids);
-    });
+      updateHeaderProjectName(project);
+    })
+    .catch(err => console.error("Failed to load project data:", err));
 }
 
 function drawChart(data) {
@@ -115,7 +118,7 @@ document.getElementById("toggleVisibility").addEventListener("click", function (
   chart.update();
 });
 
-// ---- Show / Hide Right Panel (Fixed) ----
+// ---- Show / Hide Right Panel ----
 document.getElementById("togglePanel").addEventListener("click", function () {
   const panel = document.getElementById("pointPanel");
   const hidden = panel.classList.toggle("hidden");
@@ -128,7 +131,7 @@ document.getElementById("togglePanel").addEventListener("click", function () {
   }, 350);
 });
 
-// ---- Detect sidebar collapse transition to resize chart ----
+// ---- Detect sidebar collapse transition ----
 document.addEventListener("transitionend", function(e) {
   if (e.target.id === "sidebar-left" && chart) {
     chart.resize();
@@ -139,7 +142,7 @@ document.addEventListener("transitionend", function(e) {
 document.getElementById("chartForm").addEventListener("submit", function(e) {
   e.preventDefault();
   selectedAxis = document.getElementById("axis").value;
-  loadData();
+  if (currentProject) loadDataForProject(currentProject);
   setAutoRefresh();
 });
 
@@ -147,9 +150,54 @@ document.getElementById("chartForm").addEventListener("submit", function(e) {
 function setAutoRefresh() {
   if (refreshTimer) clearInterval(refreshTimer);
   const interval = parseInt(document.getElementById("refreshSec").value) * 1000;
-  refreshTimer = setInterval(loadData, interval);
+  refreshTimer = setInterval(() => {
+    if (currentProject) loadDataForProject(currentProject);
+  }, interval);
+}
+
+// ---- Dynamic Project Loader ----
+function loadProjects() {
+  fetch("/get_projects")
+    .then(r => r.json())
+    .then(projects => {
+      const listContainer = document.querySelector(".nav-children");
+      listContainer.innerHTML = "";
+
+      projects.forEach(p => {
+        const li = document.createElement("li");
+        const a = document.createElement("a");
+        a.href = "#";
+        a.textContent = p;
+
+        a.onclick = () => {
+          document.querySelectorAll(".nav-children a").forEach(el => el.classList.remove("active"));
+          a.classList.add("active");
+          currentProject = p;
+          loadDataForProject(p);
+          setAutoRefresh();
+        };
+
+        li.appendChild(a);
+        listContainer.appendChild(li);
+      });
+
+      // Auto-load first project if none selected
+      if (!currentProject && projects.length > 0) {
+        currentProject = projects[0];
+        loadDataForProject(currentProject);
+        setAutoRefresh();
+      }
+    })
+    .catch(err => console.error("Failed to load projects:", err));
+}
+
+// ---- Update Page Header ----
+function updateHeaderProjectName(project) {
+  const headerTitle = document.querySelector(".panel-title");
+  const pageHeader = document.querySelector(".page-header h2");
+  if (headerTitle) headerTitle.textContent = `${project} Displacement Trend (Last 14 Days)`;
+  if (pageHeader) pageHeader.textContent = `${project} Displacement Trend`;
 }
 
 // ---- Start ----
-loadData();
-setAutoRefresh();
+loadProjects();
