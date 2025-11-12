@@ -1,0 +1,163 @@
+<!doctype html>
+<html class="fixed" lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Settings - MSP RAPID View</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <link href="https://fonts.googleapis.com/css?family=Open+Sans:300,400,600,700,800" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='assets/vendor/bootstrap/css/bootstrap.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='assets/vendor/font-awesome/css/font-awesome.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='assets/stylesheets/theme.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='assets/stylesheets/skins/default.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='assets/stylesheets/theme-custom.css') }}">
+</head>
+
+<body>
+<section class="body">
+  <!-- Header -->
+  <header class="header">
+    <div class="logo-container">
+      <a href="/" class="logo">
+        <img src="{{ url_for('static', filename='assets/images/rapidview.png') }}" height="110" alt="MSP RAPID View">
+      </a>
+      <div class="visible-xs toggle-sidebar-left" id="mobileSidebarToggle">
+        <i class="fa fa-bars"></i>
+      </div>
+    </div>
+  </header>
+
+  <div class="inner-wrapper">
+    <!-- Sidebar -->
+    <aside id="sidebar-left" class="sidebar-left">
+      <div class="sidebar-header">
+        <div class="sidebar-toggle hidden-xs" id="desktopSidebarToggle">
+          <i class="fa fa-bars"></i>
+        </div>
+      </div>
+
+      <div class="nano">
+        <div class="nano-content">
+          <nav id="menu" class="nav-main">
+            <ul class="nav nav-main">
+              <li>
+                <a href="/"><i class="fa fa-home"></i><span>Dashboard</span></a>
+              </li>
+
+              <li class="nav-active">
+                <a href="/settings"><i class="fa fa-cog"></i><span>Settings</span></a>
+              </li>
+
+              <li class="nav-parent">
+                <a><i class="fa fa-archive"></i><span>Project Selection</span></a>
+                <ul class="nav nav-children">
+                  {% for p in projects %}
+                    <li><a href="/project/{{ p }}">{{ p }}</a></li>
+                  {% endfor %}
+                </ul>
+              </li>
+
+            </ul>
+          </nav>
+        </div>
+      </div>
+
+      <div class="sidebar-footer">
+        <span>MSP RAPID View ver. 2025.01</span>
+      </div>
+    </aside>
+
+    <!-- Main content -->
+    <section role="main" class="content-body">
+      <header class="page-header">
+        <h2><i class="fa fa-cog"></i> Settings</h2>
+      </header>
+
+      <div class="row">
+        <div class="col-md-8">
+          <section class="panel">
+            <header class="panel-heading">
+              <h2 class="panel-title">Application Settings</h2>
+            </header>
+            <div class="panel-body">
+              <!-- Updated form -->
+              <form id="settingsForm">
+                <div class="form-group">
+                  <label for="projectsPath"><strong>Projects Folder Location</strong></label>
+                  
+<div class="input-group" style="width: 100%;">
+  <input 
+    type="text" 
+    id="projectsPath" 
+    name="projectsPath" 
+    class="form-control" 
+    style="min-width: 500px; font-size: 14px;" 
+    readonly 
+  />
+  <div class="input-group-append">
+    <button type="button" class="btn btn-primary" id="browseBtn">
+      <i class="fa fa-folder-open"></i> Browse
+    </button>
+  </div>
+</div>
+
+
+
+
+                </div>
+
+                <button type="submit" class="btn btn-primary mt-3">Save Settings</button>
+              </form>
+            </div>
+          </section>
+        </div>
+      </div>
+    </section>
+  </div>
+</section>
+
+<script src="{{ url_for('static', filename='assets/vendor/jquery/jquery.js') }}"></script>
+<script src="{{ url_for('static', filename='assets/vendor/bootstrap/js/bootstrap.js') }}"></script>
+
+<script>
+  // Load saved folder path
+  fetch("/get_directory_settings")
+    .then(r => r.json())
+    .then(data => {
+      if (data.path) document.getElementById("projectsPath").value = data.path;
+    });
+
+  // Browse for folder (File System Access API)
+document.getElementById("browseBtn").addEventListener("click", async () => {
+  try {
+    const res = await fetch("/choose_directory");
+    const data = await res.json();
+    if (data.path) {
+      document.getElementById("projectsPath").value = data.path;
+    } else {
+      alert("No folder selected.");
+    }
+  } catch (err) {
+    console.error("Folder picker error:", err);
+    alert("Folder selection not available in this environment.");
+  }
+});
+
+
+  // Save settings
+  document.getElementById("settingsForm").addEventListener("submit", e => {
+    e.preventDefault();
+    const path = document.getElementById("projectsPath").value.trim();
+    if (!path) return alert("Please select a folder first.");
+
+    fetch("/save_directory_settings", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ path })
+    })
+    .then(r => r.json())
+    .then(d => alert(d.message || "Settings saved successfully."));
+  });
+</script>
+</body>
+</html>
