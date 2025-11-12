@@ -1,0 +1,206 @@
+<!doctype html>
+<html class="fixed" lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>MSP RAPID View | {{ project }}</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- Fonts -->
+  <link href="https://fonts.googleapis.com/css?family=Open+Sans:300,400,600,700,800" rel="stylesheet">
+
+  <!-- Vendor CSS (theme) -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='assets/vendor/bootstrap/css/bootstrap.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='assets/vendor/font-awesome/css/font-awesome.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='assets/vendor/magnific-popup/magnific-popup.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='assets/vendor/bootstrap-datepicker/css/datepicker3.css') }}">
+
+  <!-- Theme CSS -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='assets/stylesheets/theme.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='assets/stylesheets/skins/default.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='assets/stylesheets/theme-custom.css') }}">
+
+  <!-- Tiny layout helpers (do NOT fight your theme; keep light) -->
+  <style>
+    /* Keep the page tight and responsive */
+    .inner-wrapper{display:flex;min-height:calc(100vh - 70px)}
+    .content-body{flex:1 1 auto;min-width:0}
+
+    /* Chart + right list layout */
+    .chart-and-list{display:flex;gap:20px;align-items:stretch;width:100%}
+    #chartContainer{flex:1;min-width:0;height:400px}
+    #pointPanel{width:260px;flex-shrink:0;overflow:hidden;transition:width .3s ease}
+
+    /* Point list looks boxed, 2 columns, scrollable */
+    #idList{display:grid;grid-template-columns:1fr 1fr;gap:8px;max-height:420px;overflow-y:auto}
+    #idList div{padding:6px;border:1px solid #bbb;background:#f8f8f8;border-radius:4px;text-align:center;cursor:pointer}
+    #idList div:hover{background:#e9e9e9}
+    .id-highlight{background:#ffe7a3!important;border-color:#d39c00!important}
+
+    /* Sidebar collapsed state (text hidden, icons centered) */
+    html.sidebar-left-collapsed #sidebar-left{width:60px!important}
+    html.sidebar-left-collapsed #sidebar-left .nav-main>li>a span,
+    html.sidebar-left-collapsed #sidebar-left .nav-parent>a span,
+    html.sidebar-left-collapsed #sidebar-left .nav-children{display:none!important}
+    html.sidebar-left-collapsed #sidebar-left .nav-main>li>a{text-align:center}
+    html.sidebar-left-collapsed #sidebar-left .nav-main>li>a i{margin:0}
+  </style>
+
+  <script src="{{ url_for('static', filename='assets/vendor/modernizr/modernizr.js') }}"></script>
+</head>
+
+<body>
+<section class="body">
+
+  <!-- Header -->
+  <header class="header">
+    <div class="logo-container">
+      <a href="/" class="logo">
+        <img src="{{ url_for('static', filename='assets/images/rapidview.png') }}" height="90" alt="MSP RAPID View">
+
+      </a>
+
+      <!-- Mobile menu toggle -->
+      <div class="visible-xs toggle-sidebar-left" id="mobileSidebarToggle" aria-label="Toggle sidebar">
+        <i class="fa fa-bars"></i>
+      </div>
+    </div>
+  </header>
+
+  <div class="inner-wrapper">
+
+    <!-- Sidebar -->
+    <aside id="sidebar-left" class="sidebar-left">
+      <div class="sidebar-header">
+        <!-- Desktop menu toggle -->
+        <div class="sidebar-toggle hidden-xs" id="desktopSidebarToggle" aria-label="Collapse sidebar">
+          <i class="fa fa-bars"></i>
+        </div>
+      </div>
+
+      <div class="nano">
+        <div class="nano-content">
+          <nav id="menu" class="nav-main">
+            <ul class="nav nav-main">
+              <li>
+                <a href="#"><i class="fa fa-home"></i><span>Dashboard</span></a>
+              </li>
+              <li class="nav-parent nav-expanded nav-active">
+                <a><i class="fa fa-archive"></i><span>Project Selection</span></a>
+                <ul class="nav nav-children">
+                  <li><a href="#">OBVCB</a></li>
+                </ul>
+              </li>
+            </ul>
+          </nav>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main content -->
+    <section role="main" class="content-body">
+      <header class="page-header">
+        <h2>{{ project }} Displacement Trend</h2>
+      </header>
+
+      <div class="row">
+        <div class="col-md-12">
+          <section class="panel">
+
+            <header class="panel-heading">
+              <h2 class="panel-title">{{ project }} Displacement Trend (Last 14 Days)</h2>
+            </header>
+
+            <div class="panel-body">
+
+              <!-- Controls (restored) -->
+              <form id="chartForm" class="mb-3" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                Axis:
+                <select id="axis">
+                  <option value="dy" selected>dY</option>
+                  <option value="dx">dX</option>
+                  <option value="dz">dZ</option>
+                </select>
+
+                Min: <input type="number" id="yMin" value="-8" step="0.1" style="width:70px;">
+                Max: <input type="number" id="yMax" value="8" step="0.1" style="width:70px;">
+
+                AL (±): <input type="number" id="alarmLimit" value="4" step="0.1" style="width:70px;">
+                WSL (±): <input type="number" id="warningLimit" value="2" step="0.1" style="width:70px;">
+
+                Refresh (sec): <input type="number" id="refreshSec" value="30" step="1" style="width:70px;">
+
+                <button type="submit" class="btn btn-primary btn-sm">Apply</button>
+                <button id="togglePanel" type="button" class="btn btn-secondary btn-sm">Hide Panel</button>
+              </form>
+
+              <!-- Chart + Point list -->
+              <div class="chart-and-list">
+                <div id="chartContainer">
+                  <canvas id="combinedChart"></canvas>
+                </div>
+
+                <div id="pointPanel">
+                  <h5 style="display:flex;justify-content:space-between;align-items:center;">
+                    Point ID List
+                    <button id="toggleVisibility" class="btn btn-xs btn-default" style="font-size:11px;">Hide All</button>
+                  </h5>
+                  <div id="idList"></div>
+                </div>
+              </div>
+
+            </div>
+          </section>
+        </div>
+      </div>
+
+    </section>
+  </div>
+</section>
+
+<!-- Vendor JS -->
+<script src="{{ url_for('static', filename='assets/vendor/jquery/jquery.js') }}"></script>
+<script src="{{ url_for('static', filename='assets/vendor/bootstrap/js/bootstrap.js') }}"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<!-- Sidebar collapse logic -->
+<script>
+  (function () {
+    function toggleSidebarCollapsed() {
+      document.documentElement.classList.toggle('sidebar-left-collapsed');
+      // Let layout finish, then resize chart so it fits the new width
+      setTimeout(function () {
+        if (window.chart && typeof window.chart.resize === 'function') {
+          window.chart.resize();
+        }
+      }, 250);
+    }
+    var desktopBtn = document.getElementById('desktopSidebarToggle');
+    var mobileBtn  = document.getElementById('mobileSidebarToggle');
+    if (desktopBtn) desktopBtn.addEventListener('click', toggleSidebarCollapsed);
+    if (mobileBtn)  mobileBtn.addEventListener('click', toggleSidebarCollapsed);
+
+    // When the sidebar transition completes (expand/collapse), resize chart again
+    document.addEventListener('transitionend', function (e) {
+      if (e.target && e.target.id === 'sidebar-left') {
+        if (window.chart && typeof window.chart.resize === 'function') {
+          window.chart.resize();
+        }
+      }
+    });
+  })();
+</script>
+
+<!-- Chart logic -->
+<script src="{{ url_for('static', filename='js/chart.js') }}"></script>
+
+<script>
+document.addEventListener("transitionend", e => {
+  if (e.target.id === "sidebar-left" && window.chart) {
+    setTimeout(() => chart.resize(), 300);
+  }
+});
+</script>
+
+
+</body>
+</html>
