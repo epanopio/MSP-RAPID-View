@@ -226,6 +226,89 @@ def read_project_settings(project_name):
     return settings
 
 
+# -------------------------------
+# Settings validation / normalization
+# -------------------------------
+def validate_and_normalize_settings(settings_dict):
+    """Validate incoming settings and return (normalized_dict, errors_list).
+
+    Accepted keys (case-insensitive): AXIS, MIN, MAX, AL, WSL, REFRESH_INTERVAL
+    Normalized values are strings suitable for writing to the settings file.
+    """
+    if not settings_dict or not isinstance(settings_dict, dict):
+        return {}, []
+
+    def get(k):
+        return settings_dict.get(k) or settings_dict.get(k.upper()) or settings_dict.get(k.lower())
+
+    normalized = {}
+    errors = []
+
+    # AXIS
+    axis = get('axis')
+    if axis is not None:
+        axis = str(axis).strip()
+        if axis not in ('dx', 'dy', 'dz'):
+            errors.append("AXIS must be one of 'dx', 'dy', 'dz'")
+        else:
+            normalized['AXIS'] = axis
+
+    # Numeric fields
+    def parse_float(key):
+        v = get(key)
+        if v is None or str(v).strip() == '':
+            return None
+        try:
+            return float(v)
+        except Exception:
+            errors.append(f"{key} must be a number")
+            return None
+
+    def parse_int(key):
+        v = get(key)
+        if v is None or str(v).strip() == '':
+            return None
+        try:
+            return int(float(v))
+        except Exception:
+            errors.append(f"{key} must be an integer")
+            return None
+
+    minv = parse_float('MIN')
+    maxv = parse_float('MAX')
+    al = parse_float('AL')
+    wsl = parse_float('WSL')
+    rint = parse_int('REFRESH_INTERVAL')
+
+    if minv is not None:
+        normalized['MIN'] = str(minv)
+    if maxv is not None:
+        normalized['MAX'] = str(maxv)
+    if minv is not None and maxv is not None:
+        if minv >= maxv:
+            errors.append('MIN must be less than MAX')
+
+    if al is not None:
+        if al < 0:
+            errors.append('AL must be >= 0')
+        else:
+            normalized['AL'] = str(al)
+
+    if wsl is not None:
+        if wsl < 0:
+            errors.append('WSL must be >= 0')
+        else:
+            normalized['WSL'] = str(wsl)
+
+    if rint is not None:
+        if rint < 1 or rint > 86400:
+            errors.append('REFRESH_INTERVAL must be between 1 and 86400 (seconds)')
+        else:
+            normalized['REFRESH_INTERVAL'] = str(rint)
+
+    return normalized, errors
+
+
 # ==============================================================
 
 @app.route("/")
@@ -290,39 +373,119 @@ def get_data_route():
 def save_directory_settings():
     data = request.get_json()
 
-    path = data.get("path", "").strip()
-    project = data.get("project", "").strip()
+    path = data.get("path")
+    project = (data.get("project") or "").strip()
 
-    if not path:
-        return jsonify({"error": "Invalid path"}), 400
+    # If a path was provided (user changed/selected it), update PROJECTS_PATH.
+    # Do NOT require a path to save per-project settings.
+    if path is not None:
+        path = path.strip()
+        if path:
+            # Save PROJECTS_PATH
+            lines = []
+            if SETTINGS_FILE.exists():
+                with open(SETTINGS_FILE, "r", encoding="utf-8") as f:
+                    lines = f.readlines()
 
-    # Save PROJECTS_PATH
-    lines = []
-    if SETTINGS_FILE.exists():
-        with open(SETTINGS_FILE, "r", encoding="utf-8") as f:
-            lines = f.readlines()
+            new_lines = []
+            wrote_path = False
+            for line in lines:
+                if line.startswith("PROJECTS_PATH="):
+                    new_lines.append(f"PROJECTS_PATH={path}\n")
+                    wrote_path = True
+                else:
+                    new_lines.append(line)
 
-    new_lines = []
-    wrote_path = False
-    for line in lines:
-        if line.startswith("PROJECTS_PATH="):
-            new_lines.append(f"PROJECTS_PATH={path}\n")
-            wrote_path = True
-        else:
-            new_lines.append(line)
+            if not wrote_path:
+                new_lines.insert(0, f"PROJECTS_PATH={path}\n\n")
 
-    if not wrote_path:
-        new_lines.insert(0, f"PROJECTS_PATH={path}\n\n")
-
-    with open(SETTINGS_FILE, "w", encoding="utf-8") as f:
-        f.writelines(new_lines)
+            with open(SETTINGS_FILE, "w", encoding="utf-8") as f:
+                f.writelines(new_lines)
 
     # Save per-project settings if provided
     settings = data.get("settings")
-    if project and isinstance(settings, dict):
-        save_project_settings(project, settings)
+    project_saved = False
+    path_saved = False
 
-    return jsonify({"message": "Settings saved", "reload": True})
+    if path is not None:
+        # If we reached here and path was non-empty we wrote it above
+        path_saved = bool(path and path.strip())
+
+    if project and isinstance(settings, dict):
+        # Validate settings first
+        normalized, errors = validate_and_normalize_settings(settings)
+        if errors:
+            return jsonify({"error": "; ".join(errors)}), 400
+        save_project_settings(project, normalized)
+        project_saved = True
+
+    # Construct a helpful message for the UI
+    if project_saved and path_saved:
+        message = "PROJECTS_PATH and project settings saved."
+    elif project_saved:
+        message = "Project settings saved."
+    elif path_saved:
+        message = "PROJECTS_PATH saved."
+    else:
+        message = "No changes made."
+
+    return jsonify({"message": message, "reload": True, "path_saved": path_saved, "project_saved": project_saved})
+
+
+# Compatibility endpoints for legacy frontend (static/js/chart.js)
+@app.route('/save_settings', methods=['POST'])
+def save_settings():
+    data = request.get_json() or {}
+    project = (data.get('project') or '').strip()
+    if not project:
+        return jsonify({'error': 'Missing project'}), 400
+
+    settings = {
+        'AXIS': data.get('axis'),
+        'MIN': data.get('yMin'),
+        'MAX': data.get('yMax'),
+        'AL': data.get('alarmLimit'),
+        'WSL': data.get('warningLimit'),
+        'REFRESH_INTERVAL': data.get('refreshSec')
+    }
+
+    # Remove None values
+    settings = {k: v for k, v in settings.items() if v is not None}
+
+    if settings:
+        # Validate
+        normalized, errors = validate_and_normalize_settings(settings)
+        if errors:
+            return jsonify({'error': '; '.join(errors)}), 400
+        save_project_settings(project, normalized)
+        return jsonify({'message': 'Project settings saved.', 'project_saved': True})
+
+    return jsonify({'message': 'No settings provided.', 'project_saved': False})
+
+
+@app.route('/get_settings')
+def get_settings_route():
+    project = request.args.get('project')
+    if not project:
+        return jsonify({}), 400
+
+    s = read_project_settings(project)
+    if not s:
+        # return defaults expected by frontend
+        return jsonify({
+            'axis': 'dy', 'yMin': '-8', 'yMax': '8', 'alarmLimit': '4', 'warningLimit': '2', 'refreshSec': '30'
+        })
+
+    # Map uppercase stored keys to legacy frontend keys
+    res = {
+        'axis': s.get('AXIS', 'dy'),
+        'yMin': s.get('MIN', '-8'),
+        'yMax': s.get('MAX', '8'),
+        'alarmLimit': s.get('AL', '4'),
+        'warningLimit': s.get('WSL', '2'),
+        'refreshSec': s.get('REFRESH_INTERVAL', '30')
+    }
+    return jsonify(res)
 
 
 @app.route("/choose_directory")
