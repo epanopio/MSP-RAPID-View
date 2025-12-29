@@ -1,2 +1,0 @@
-PROJECTS_PATH=C:\Users\eman\Desktop\PROJECTS
-
