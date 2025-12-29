@@ -1,62 +1,21 @@
 @echo off
-title Building MSP RAPID View Executable...
+title Building MSP RAPID View EXE...
 color 0A
 
-echo.
-echo ==============================================
-echo     🚀 Building MSP RAPID View Executable
-echo ==============================================
-echo.
+echo Cleaning old builds...
+rmdir /s /q build 2>nul
+rmdir /s /q dist 2>nul
+del MSP_RAPID_View.spec 2>nul
 
-:: Detect Python
-echo Detecting Python environment...
-for /f "delims=" %%i in ('where python 2^>nul') do set PYTHON_EXE=%%i
-if not defined PYTHON_EXE (
-    echo ❌ Python not found. Please install Python and ensure it is added to PATH.
-    pause
-    exit /b
-)
-echo ✅ Using Python: %PYTHON_EXE%
-echo.
+echo Building new EXE...
 
-:: Check if PyInstaller is installed
-echo Checking PyInstaller module...
-"%PYTHON_EXE%" -m pyinstaller --version >nul 2>&1
-if errorlevel 1 (
-    echo ⚙️ Installing PyInstaller...
-    "%PYTHON_EXE%" -m pip install --upgrade pip >nul
-    "%PYTHON_EXE%" -m pip install pyinstaller >nul
-)
-
-:: Define build parameters
-set EXE_NAME=MSP_RAPID_View
-set ICON_FILE=rapidview.ico
-
-echo.
-echo 🏗️ Starting build process...
-echo ----------------------------------------------
-
-:: Build EXE
-"%PYTHON_EXE%" -m pyinstaller --noconfirm --onefile ^
- --name "%EXE_NAME%" ^
+pyinstaller --noconfirm --onefile ^
+ --name "MSP_RAPID_View" ^
+ --hidden-import flask ^
  --add-data "templates;templates" ^
  --add-data "static;static" ^
- --icon "%ICON_FILE%" ^
+ --icon=app_icon.ico ^
  app.py
 
-echo.
-if exist "dist\%EXE_NAME%.exe" (
-    echo ✅ Build completed successfully!
-    echo ----------------------------------------------
-    echo 📦 Executable: dist\%EXE_NAME%.exe
-    echo 📁 Opening output folder...
-    start "" "dist"
-) else (
-    echo ❌ Build failed! Please check the error messages above.
-)
-
-echo.
-echo ==============================================
-echo        Build process finished.
-echo ==============================================
+echo Build complete!
 pause

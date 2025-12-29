@@ -2,17 +2,45 @@ let chart;
 let selectedAxis = "dy";
 let refreshTimer;
 
-function loadData() {
-  fetch("/get_data")
-    .then(r => r.json())
-    .then(data => {
-      drawChart(data);
-      updateIDList(data.ids, data);
-    });
+// -------------------------------
+// Load data + apply project settings
+// -------------------------------
+async function loadData() {
+  const project = document.getElementById("projectInput").value;
+
+  // Load saved settings
+  const settingsRes = await fetch(`/get_project_settings?project=${project}`);
+  const settings = await settingsRes.json();
+
+  if (settings) {
+    document.getElementById("axis").value = settings.AXIS || "dy";
+    document.getElementById("yMin").value = settings.MIN || -8;
+    document.getElementById("yMax").value = settings.MAX || 8;
+    document.getElementById("alarmLimit").value = settings.AL || 4;
+    document.getElementById("warningLimit").value = settings.WSL || 2;
+    document.getElementById("refreshSec").value = settings.REFRESH_INTERVAL || 30;
+  }
+
+  selectedAxis = document.getElementById("axis").value;
+
+  const response = await fetch("/get_data");
+  const data = await response.json();
+
+  drawChart(data);
+  updateIDList(data.ids, data);
+
+  clearInterval(refreshTimer);
+  const refreshSec = parseInt(document.getElementById("refreshSec").value) || 30;
+  refreshTimer = setInterval(loadData, refreshSec * 1000);
 }
 
+// -------------------------------
+// Draw chart
+// -------------------------------
 function drawChart(data) {
   const ctx = document.getElementById("combinedChart").getContext("2d");
+  const yMin = parseFloat(document.getElementById("yMin").value);
+  const yMax = parseFloat(document.getElementById("yMax").value);
 
   const datasets = data.ids.map((id, i) => ({
     label: id,
@@ -28,25 +56,28 @@ function drawChart(data) {
     type: "line",
     data: { labels: data.timestamps, datasets },
     options: {
-      scales: { y: { min: yMin.value, max: yMax.value } }
+      scales: { y: { min: yMin, max: yMax } }
     }
   });
 }
 
-function updateIDList(ids, data) {
+// -------------------------------
+// Update ID list
+// -------------------------------
+function updateIDList(ids) {
   const list = document.getElementById("idList");
   list.innerHTML = "";
   ids.forEach(id => {
-    let div = document.createElement("div");
+    const div = document.createElement("div");
     div.textContent = id;
-    div.onclick = () => highlightID(id);
+    div.onclick = e => highlightID(e, id);
     list.appendChild(div);
   });
 }
 
-function highlightID(id) {
+function highlightID(e, id) {
   document.querySelectorAll("#idList div").forEach(el => el.classList.remove("id-highlight"));
-  event.target.classList.add("id-highlight");
+  e.target.classList.add("id-highlight");
 
   chart.data.datasets.forEach(set => {
     set.borderWidth = (set.label === id ? 4 : 1);
@@ -56,13 +87,41 @@ function highlightID(id) {
   chart.update();
 }
 
-chartForm.addEventListener("submit", e => {
+// -------------------------------
+// Save settings to backend
+// -------------------------------
+async function saveSettings() {
+  const payload = {
+    path: document.getElementById("projectsPath").value,
+    project: document.getElementById("projectInput").value,
+    settings: {
+      AXIS: document.getElementById("axis").value,
+      MIN: document.getElementById("yMin").value,
+      MAX: document.getElementById("yMax").value,
+      AL: document.getElementById("alarmLimit").value,
+      WSL: document.getElementById("warningLimit").value,
+      REFRESH_INTERVAL: document.getElementById("refreshSec").value
+    }
+  };
+
+  await fetch("/save_directory_settings", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+}
+
+// -------------------------------
+// Handle Apply button
+// -------------------------------
+document.getElementById("chartForm").addEventListener("submit", async e => {
   e.preventDefault();
-  selectedAxis = axis.value;
-  clearInterval(refreshTimer);
-  refreshTimer = setInterval(loadData, refreshSec.value * 1000);
-  loadData();
+  await saveSettings();
+  await loadData();
 });
 
+// -------------------------------
+// Initial load
+// -------------------------------
 loadData();
 refreshTimer = setInterval(loadData, 30000);

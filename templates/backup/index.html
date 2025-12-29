@@ -8,7 +8,7 @@
   <!-- Fonts -->
   <link href="https://fonts.googleapis.com/css?family=Open+Sans:300,400,600,700,800" rel="stylesheet">
 
-  <!-- Vendor CSS (theme) -->
+  <!-- Vendor CSS -->
   <link rel="stylesheet" href="{{ url_for('static', filename='assets/vendor/bootstrap/css/bootstrap.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='assets/vendor/font-awesome/css/font-awesome.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='assets/vendor/magnific-popup/magnific-popup.css') }}">
@@ -19,30 +19,29 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='assets/stylesheets/skins/default.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='assets/stylesheets/theme-custom.css') }}">
 
-  <!-- Tiny layout helpers (do NOT fight your theme; keep light) -->
+  <!-- Layout adjustments -->
   <style>
-    /* Keep the page tight and responsive */
-    .inner-wrapper{display:flex;min-height:calc(100vh - 70px)}
-    .content-body{flex:1 1 auto;min-width:0}
+    .inner-wrapper { display:flex; min-height:calc(100vh - 70px) }
+    .content-body { flex:1 1 auto; min-width:0 }
 
     /* Chart + right list layout */
-    .chart-and-list{display:flex;gap:20px;align-items:stretch;width:100%}
-    #chartContainer{flex:1;min-width:0;height:400px}
-    #pointPanel{width:260px;flex-shrink:0;overflow:hidden;transition:width .3s ease}
+    .chart-and-list { display:flex; gap:20px; align-items:stretch; width:100% }
+    #chartContainer { flex:1; min-width:0; height:400px }
+    #pointPanel { width:260px; flex-shrink:0; overflow:hidden; transition:width .3s ease }
 
-    /* Point list looks boxed, 2 columns, scrollable */
-    #idList{display:grid;grid-template-columns:1fr 1fr;gap:8px;max-height:420px;overflow-y:auto}
-    #idList div{padding:6px;border:1px solid #bbb;background:#f8f8f8;border-radius:4px;text-align:center;cursor:pointer}
-    #idList div:hover{background:#e9e9e9}
-    .id-highlight{background:#ffe7a3!important;border-color:#d39c00!important}
+    /* Point list - 2 columns, scrollable */
+    #idList { display:grid; grid-template-columns:1fr 1fr; gap:8px; max-height:420px; overflow-y:auto }
+    #idList div { padding:6px; border:1px solid #bbb; background:#f8f8f8; border-radius:4px; text-align:center; cursor:pointer }
+    #idList div:hover { background:#e9e9e9 }
+    .id-highlight { background:#ffe7a3!important; border-color:#d39c00!important }
 
-    /* Sidebar collapsed state (text hidden, icons centered) */
-    html.sidebar-left-collapsed #sidebar-left{width:60px!important}
+    /* Sidebar collapsed */
+    html.sidebar-left-collapsed #sidebar-left { width:60px!important }
     html.sidebar-left-collapsed #sidebar-left .nav-main>li>a span,
     html.sidebar-left-collapsed #sidebar-left .nav-parent>a span,
-    html.sidebar-left-collapsed #sidebar-left .nav-children{display:none!important}
-    html.sidebar-left-collapsed #sidebar-left .nav-main>li>a{text-align:center}
-    html.sidebar-left-collapsed #sidebar-left .nav-main>li>a i{margin:0}
+    html.sidebar-left-collapsed #sidebar-left .nav-children { display:none!important }
+    html.sidebar-left-collapsed #sidebar-left .nav-main>li>a { text-align:center }
+    html.sidebar-left-collapsed #sidebar-left .nav-main>li>a i { margin:0 }
   </style>
 
   <script src="{{ url_for('static', filename='assets/vendor/modernizr/modernizr.js') }}"></script>
@@ -56,7 +55,6 @@
     <div class="logo-container">
       <a href="/" class="logo">
         <img src="{{ url_for('static', filename='assets/images/rapidview.png') }}" height="110" alt="MSP RAPID View">
-
       </a>
 
       <!-- Mobile menu toggle -->
@@ -82,36 +80,32 @@
           <nav id="menu" class="nav-main">
             <ul class="nav nav-main">
               <li>
-                <a href="#"><i class="fa fa-home"></i><span>Dashboard</span></a>
+                <a href="/"><i class="fa fa-home"></i><span>Dashboard</span></a>
               </li>
 
-<li class="nav-item">
-  <a class="nav-link" href="/settings">
-    <i class="fas fa-cog"></i> Settings
-  </a>
-</li>
-
-<li class="nav-item">
-  <a class="nav-link" href="/settings">
-    <i class="fas fa-cog"></i> Settings
-  </a>
-</li>
-
-              <li class="nav-parent nav-expanded nav-active">
-                <a><i class="fa fa-archive"></i><span>Project Selection</span></a>
-                <ul class="nav nav-children">
-                  <li><a href="#">OBVCB</a></li>
-                </ul>
+              <li>
+                <a href="/settings"><i class="fa fa-cog"></i><span>Settings</span></a>
               </li>
+
+             
+<li class="nav-parent nav-expanded nav-active">
+  <a><i class="fa fa-archive"></i><span>Project Selection</span></a>
+  <ul class="nav nav-children">
+    {% for p in projects %}
+      <li><a href="/project/{{ p }}">{{ p }}</a></li>
+    {% endfor %}
+  </ul>
+</li>
+
+
             </ul>
           </nav>
         </div>
       </div>
 
-<div class="sidebar-footer">
-  <span>MSP RAPID View ver. 2025.01</span>
-</div>
-
+      <div class="sidebar-footer">
+        <span>MSP RAPID View ver. 2025.01</span>
+      </div>
     </aside>
 
     <!-- Main content -->
@@ -123,14 +117,12 @@
       <div class="row">
         <div class="col-md-12">
           <section class="panel">
-
             <header class="panel-heading">
               <h2 class="panel-title">{{ project }} Displacement Trend (Last 14 Days)</h2>
             </header>
 
             <div class="panel-body">
-
-              <!-- Controls (restored) -->
+              <!-- Controls -->
               <form id="chartForm" class="mb-3" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
                 Axis:
                 <select id="axis">
@@ -141,10 +133,8 @@
 
                 Min: <input type="number" id="yMin" value="-8" step="0.1" style="width:70px;">
                 Max: <input type="number" id="yMax" value="8" step="0.1" style="width:70px;">
-
                 AL (±): <input type="number" id="alarmLimit" value="4" step="0.1" style="width:70px;">
                 WSL (±): <input type="number" id="warningLimit" value="2" step="0.1" style="width:70px;">
-
                 Refresh (sec): <input type="number" id="refreshSec" value="30" step="1" style="width:70px;">
 
                 <button type="submit" class="btn btn-primary btn-sm">Apply</button>
@@ -165,57 +155,50 @@
                   <div id="idList"></div>
                 </div>
               </div>
-
             </div>
           </section>
         </div>
       </div>
 
-<!-- Footer -->
-<footer class="main-footer">
-  <p>Monitoring Solution Providers Pte. Ltd.</p>
-</footer>
-
-
+      <!-- Footer -->
+      <footer class="main-footer">
+        <p>Monitoring Solution Providers Pte. Ltd.</p>
+      </footer>
     </section>
   </div>
 </section>
 
-<!-- Vendor JS -->
+<!-- JS -->
 <script src="{{ url_for('static', filename='assets/vendor/jquery/jquery.js') }}"></script>
 <script src="{{ url_for('static', filename='assets/vendor/bootstrap/js/bootstrap.js') }}"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
-<!-- Sidebar collapse logic -->
-<script>
-  (function () {
-    function toggleSidebarCollapsed() {
-      document.documentElement.classList.toggle('sidebar-left-collapsed');
-      // Let layout finish, then resize chart so it fits the new width
-      setTimeout(function () {
-        if (window.chart && typeof window.chart.resize === 'function') {
-          window.chart.resize();
-        }
-      }, 250);
-    }
-    var desktopBtn = document.getElementById('desktopSidebarToggle');
-    var mobileBtn  = document.getElementById('mobileSidebarToggle');
-    if (desktopBtn) desktopBtn.addEventListener('click', toggleSidebarCollapsed);
-    if (mobileBtn)  mobileBtn.addEventListener('click', toggleSidebarCollapsed);
-
-    // When the sidebar transition completes (expand/collapse), resize chart again
-    document.addEventListener('transitionend', function (e) {
-      if (e.target && e.target.id === 'sidebar-left') {
-        if (window.chart && typeof window.chart.resize === 'function') {
-          window.chart.resize();
-        }
-      }
-    });
-  })();
-</script>
-
-<!-- Chart logic -->
 <script src="{{ url_for('static', filename='js/chart.js') }}"></script>
+
+<!-- Sidebar collapse -->
+<script>
+(function() {
+  function toggleSidebarCollapsed() {
+    document.documentElement.classList.toggle('sidebar-left-collapsed');
+    setTimeout(function() {
+      if (window.chart && typeof window.chart.resize === 'function') {
+        window.chart.resize();
+      }
+    }, 250);
+  }
+  var desktopBtn = document.getElementById('desktopSidebarToggle');
+  var mobileBtn  = document.getElementById('mobileSidebarToggle');
+  if (desktopBtn) desktopBtn.addEventListener('click', toggleSidebarCollapsed);
+  if (mobileBtn)  mobileBtn.addEventListener('click', toggleSidebarCollapsed);
+
+  document.addEventListener('transitionend', function(e) {
+    if (e.target && e.target.id === 'sidebar-left') {
+      if (window.chart && typeof window.chart.resize === 'function') {
+        window.chart.resize();
+      }
+    }
+  });
+})();
+</script>
 
 <script>
 document.addEventListener("transitionend", e => {
@@ -224,7 +207,5 @@ document.addEventListener("transitionend", e => {
   }
 });
 </script>
-
-
 </body>
 </html>

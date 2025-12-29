@@ -15,6 +15,7 @@
 
 <body>
 <section class="body">
+
   <!-- Header -->
   <header class="header">
     <div class="logo-container">
@@ -28,6 +29,7 @@
   </header>
 
   <div class="inner-wrapper">
+
     <!-- Sidebar -->
     <aside id="sidebar-left" class="sidebar-left">
       <div class="sidebar-header">
@@ -40,6 +42,7 @@
         <div class="nano-content">
           <nav id="menu" class="nav-main">
             <ul class="nav nav-main">
+
               <li>
                 <a href="/"><i class="fa fa-home"></i><span>Dashboard</span></a>
               </li>
@@ -79,41 +82,45 @@
             <header class="panel-heading">
               <h2 class="panel-title">Application Settings</h2>
             </header>
+
             <div class="panel-body">
-              <!-- Updated form -->
+
               <form id="settingsForm">
+
                 <div class="form-group">
                   <label for="projectsPath"><strong>Projects Folder Location</strong></label>
-                  
-<div class="input-group" style="width: 100%;">
-  <input 
-    type="text" 
-    id="projectsPath" 
-    name="projectsPath" 
-    class="form-control" 
-    style="min-width: 500px; font-size: 14px;" 
-    readonly 
-  />
-  <div class="input-group-append">
-    <button type="button" class="btn btn-primary" id="browseBtn">
-      <i class="fa fa-folder-open"></i> Browse
-    </button>
-  </div>
-</div>
 
-
-
+                  <div class="input-group" style="width: 100%;">
+                    <input 
+                      type="text" 
+                      id="projectsPath" 
+                      name="projectsPath" 
+                      class="form-control" 
+                      value="{{ saved_path }}"
+                      style="min-width: 500px; font-size: 14px;"
+                      readonly 
+                    />
+                    <div class="input-group-append">
+                      <button type="button" class="btn btn-primary" id="browseBtn">
+                        <i class="fa fa-folder-open"></i> Browse
+                      </button>
+                    </div>
+                  </div>
 
                 </div>
 
                 <button type="submit" class="btn btn-primary mt-3">Save Settings</button>
+
               </form>
+
             </div>
           </section>
         </div>
       </div>
+
     </section>
   </div>
+
 </section>
 
 <script src="{{ url_for('static', filename='assets/vendor/jquery/jquery.js') }}"></script>
@@ -127,15 +134,34 @@
       if (data.path) document.getElementById("projectsPath").value = data.path;
     });
 
-  // Browse for folder (File System Access API)
+  // Browse for folder (EXE mode native picker + browser fallback)
   document.getElementById("browseBtn").addEventListener("click", async () => {
+    // First try EXE-native folder picker
     try {
-      const dirHandle = await window.showDirectoryPicker();
-      document.getElementById("projectsPath").value = dirHandle.name;
-      // Note: Full path is not available in browsers, only in local EXE version
+      const res = await fetch("/choose_directory");
+      const data = await res.json();
+
+      if (data.path) {
+        document.getElementById("projectsPath").value = data.path;
+        return;
+      }
     } catch (err) {
-      console.warn("Directory selection cancelled or unsupported:", err);
+      console.warn("Native EXE folder picker not available.");
     }
+
+    // Browser fallback
+    if (window.showDirectoryPicker) {
+      try {
+        const dir = await window.showDirectoryPicker();
+        document.getElementById("projectsPath").value = dir.name;
+        return;
+      } catch (e) {
+        alert("Folder selection cancelled.");
+        return;
+      }
+    }
+
+    alert("Folder selection not available in this environment.");
   });
 
   // Save settings
@@ -150,8 +176,14 @@
       body: JSON.stringify({ path })
     })
     .then(r => r.json())
-    .then(d => alert(d.message || "Settings saved successfully."));
+    .then(d => {
+      alert(d.message || "Settings saved.");
+
+      // Auto reload dashboard using new path
+      if (d.reload) window.location.href = "/";
+    });
   });
 </script>
+
 </body>
 </html>

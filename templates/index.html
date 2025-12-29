@@ -7,6 +7,9 @@
 
   <!-- Fonts -->
   <link href="https://fonts.googleapis.com/css?family=Open+Sans:300,400,600,700,800" rel="stylesheet">
+   
+  <link rel="icon" href="{{ url_for('static', filename='assets/images/rapidviewico.ico') }}" type="image/x-icon">
+
 
   <!-- Vendor CSS -->
   <link rel="stylesheet" href="{{ url_for('static', filename='assets/vendor/bootstrap/css/bootstrap.css') }}">
@@ -137,6 +140,9 @@
                 WSL (±): <input type="number" id="warningLimit" value="2" step="0.1" style="width:70px;">
                 Refresh (sec): <input type="number" id="refreshSec" value="30" step="1" style="width:70px;">
 
+                <input type="hidden" id="projectInput" value="{{ project }}">
+                <input type="hidden" id="projectsPath" value="{{ saved_path or '' }}">
+
                 <button type="submit" class="btn btn-primary btn-sm">Apply</button>
                 <button id="togglePanel" type="button" class="btn btn-secondary btn-sm">Hide Panel</button>
               </form>
@@ -169,43 +175,10 @@
 </section>
 
 <!-- JS -->
-<script src="{{ url_for('static', filename='assets/vendor/jquery/jquery.js') }}"></script>
+<script src="{{ url_for('static', filename='assets/vendor/jquery/jquery.js') }}"></cript>
 <script src="{{ url_for('static', filename='assets/vendor/bootstrap/js/bootstrap.js') }}"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="{{ url_for('static', filename='js/chart.js') }}"></script>
 
-<!-- Sidebar collapse -->
 <script>
-(function() {
-  function toggleSidebarCollapsed() {
-    document.documentElement.classList.toggle('sidebar-left-collapsed');
-    setTimeout(function() {
-      if (window.chart && typeof window.chart.resize === 'function') {
-        window.chart.resize();
-      }
-    }, 250);
-  }
-  var desktopBtn = document.getElementById('desktopSidebarToggle');
-  var mobileBtn  = document.getElementById('mobileSidebarToggle');
-  if (desktopBtn) desktopBtn.addEventListener('click', toggleSidebarCollapsed);
-  if (mobileBtn)  mobileBtn.addEventListener('click', toggleSidebarCollapsed);
-
-  document.addEventListener('transitionend', function(e) {
-    if (e.target && e.target.id === 'sidebar-left') {
-      if (window.chart && typeof window.chart.resize === 'function') {
-        window.chart.resize();
-      }
-    }
-  });
-})();
-</script>
-
-<script>
-document.addEventListener("transitionend", e => {
-  if (e.target.id === "sidebar-left" && window.chart) {
-    setTimeout(() => chart.resize(), 300);
-  }
-});
-</script>
-</body>
-</html>
+document.
